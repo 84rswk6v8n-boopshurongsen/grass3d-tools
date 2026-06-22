@@ -1,0 +1,44 @@
+{
+  "package_version": 2,
+  "name": "grass3d-tools",
+  "version": "0.1.3",
+  "author": "\u8212\u8363\u68ee",
+  "editor": ">=3.8.0",
+  "description": "Cocos Creator 3.8.x Grass3D editor extension. Creates interactive 3D grass nodes and installs GrassSystem runtime assets automatically.",
+  "main": "./main.js",
+  "contributions": {
+    "menu": [
+      {
+        "path": "i18n:menu.node",
+        "label": "3d\u8349\u5730",
+        "message": "create-grass3d-node"
+      }
+    ],
+    "messages": {
+      "create-grass3d-node": {
+        "methods": [
+          "createGrass3DNode"
+        ]
+      },
+      "install-grass3d-runtime": {
+        "methods": [
+          "installRuntimeAssets"
+        ]
+      }
+    },
+    "hierarchy": {
+      "menu": {
+        "methods": "./hierarchy-menu.js",
+        "createMenu": "getCreateMenu",
+        "nodeMenu": "getNodeMenu",
+        "rootMenu": "getRootMenu"
+      }
+    },
+    "scene": {
+      "script": "./scene.js",
+      "methods": [
+        "createGrass3DNodeV2"
+      ]
+    }
+  }
+}

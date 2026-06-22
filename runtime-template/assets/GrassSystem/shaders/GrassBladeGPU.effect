@@ -1,0 +1,131 @@
+CCEffect %{
+  techniques:
+  - name: opaque
+    passes:
+    - vert: grass-vs:vert
+      frag: grass-fs:frag
+      rasterizerState:
+        cullMode: none
+      depthStencilState:
+        depthTest: true
+        depthWrite: true
+      properties:
+        mainColor: { value: [1, 1, 1, 1], linear: true, editor: { type: color } }
+        windParams: { value: [0.11, 0.75, 1.3, 0.88] }
+        bendParams: { value: [0.95, 0.65, 0, 0] }
+    - vert: grass-shadow-vs:vert
+      frag: grass-shadow-fs:frag
+      phase: shadow-caster
+      rasterizerState:
+        cullMode: none
+      propertyIndex: 0
+}%
+
+CCProgram grass-vs %{
+  precision highp float;
+  #include <legacy/input>
+  #include <builtin/uniforms/cc-global>
+  #include <legacy/decode-base>
+  #include <legacy/local-batch>
+  #include <legacy/fog-vs>
+
+  in lowp vec4 a_color;
+
+  out lowp vec4 v_color;
+
+  uniform GrassParams {
+    vec4 mainColor;
+    vec4 windParams; // x strength, y scale, z speed, w interaction suppression
+    vec4 bendParams; // x opposing wind suppression, y max bend distance
+  };
+
+  vec4 vert () {
+    vec4 position;
+    CCVertInput(position);
+
+    float heightT = clamp(a_texCoord.y, 0.0, 1.0);
+    float bendT = heightT * heightT;
+    float phase = cc_time.x * 1.3 + a_position.x * 0.75 + a_position.z * 0.75;
+    vec3 windBend = vec3(1.0, 0.0, 0.35) * (sin(phase) * 0.16);
+    vec3 bendOffset = (windBend + a_normal) * bendT;
+    vec3 root = a_tangent.xyz;
+    vec3 fromRoot = a_position.xyz - root;
+    float originalLength = length(fromRoot);
+    vec3 bentFromRoot = fromRoot + bendOffset;
+    if (originalLength > 0.0001 && length(bentFromRoot) > 0.0001) {
+      position.xyz = root + normalize(bentFromRoot) * originalLength;
+    } else {
+      position.xyz += bendOffset;
+    }
+
+    mat4 matWorld;
+    CCGetWorldMatrix(matWorld);
+    v_color = a_color * mainColor;
+    CC_TRANSFER_FOG(matWorld * position);
+    return cc_matProj * (cc_matView * matWorld) * position;
+  }
+}%
+
+CCProgram grass-fs %{
+  precision highp float;
+  #include <legacy/output-standard>
+  #include <legacy/fog-fs>
+
+  in lowp vec4 v_color;
+
+  vec4 frag () {
+    vec4 o = v_color;
+    o.rgb = SRGBToLinear(o.rgb);
+    CC_APPLY_FOG(o);
+    return CCFragOutput(o);
+  }
+}%
+
+CCProgram grass-shadow-vs %{
+  precision highp float;
+  #include <legacy/input>
+  #include <builtin/uniforms/cc-global>
+  #include <legacy/decode-base>
+  #include <legacy/local-batch>
+  #include <builtin/uniforms/cc-shadow>
+
+  uniform GrassParams {
+    vec4 mainColor;
+    vec4 windParams;
+    vec4 bendParams;
+  };
+
+  vec4 vert () {
+    vec4 position;
+    CCVertInput(position);
+
+    float heightT = clamp(a_texCoord.y, 0.0, 1.0);
+    float bendT = heightT * heightT;
+    float phase = cc_time.x * 1.3 + a_position.x * 0.75 + a_position.z * 0.75;
+    vec3 windBend = vec3(1.0, 0.0, 0.35) * (sin(phase) * 0.16);
+    vec3 bendOffset = (windBend + a_normal) * bendT;
+    vec3 root = a_tangent.xyz;
+    vec3 fromRoot = a_position.xyz - root;
+    float originalLength = length(fromRoot);
+    vec3 bentFromRoot = fromRoot + bendOffset;
+    if (originalLength > 0.0001 && length(bentFromRoot) > 0.0001) {
+      position.xyz = root + normalize(bentFromRoot) * originalLength;
+    } else {
+      position.xyz += bendOffset;
+    }
+
+    mat4 matWorld, matWorldIT;
+    CCGetWorldMatrixFull(matWorld, matWorldIT);
+    vec4 worldPos = matWorld * position;
+    return cc_matLightViewProj * worldPos;
+  }
+}%
+
+CCProgram grass-shadow-fs %{
+  precision highp float;
+  #include <legacy/output>
+
+  vec4 frag () {
+    return CCFragOutput(vec4(1.0));
+  }
+}%
